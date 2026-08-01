@@ -137,3 +137,6 @@ async def change_status(ticket_id, status):
         )
 
         await db.commit()
+
+async def connect_db():
+    return await aiosqlite.connect(DB_NAME)
