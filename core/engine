@@ -1,0 +1,36 @@
+from core.messages import get_message
+from core.stickers import get_sticker
+
+
+
+async def send_dynamic(
+    bot,
+    chat_id,
+    message_key,
+    sticker_key=None
+):
+
+    if sticker_key:
+
+        sticker = await get_sticker(
+            sticker_key
+        )
+
+        if sticker:
+
+            await bot.send_sticker(
+                chat_id,
+                sticker
+            )
+
+
+    text = await get_message(
+        message_key,
+        "پیام پیدا نشد"
+    )
+
+
+    await bot.send_message(
+        chat_id,
+        text
+    )
