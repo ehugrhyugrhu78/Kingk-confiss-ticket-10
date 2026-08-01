@@ -111,3 +111,22 @@ async def add_user(user_id, username, full_name):
         )
 
         await db.commit()
+        async def add_message(ticket_id, sender_id, message_type="text", file_id=None, caption=""):
+    import aiosqlite
+    import datetime
+
+    async with aiosqlite.connect("bot.db") as db:
+        await db.execute("""
+            INSERT INTO messages
+            (ticket_id, sender_id, message_type, file_id, caption, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            ticket_id,
+            sender_id,
+            message_type,
+            file_id,
+            caption,
+            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ))
+
+        await db.commit()
