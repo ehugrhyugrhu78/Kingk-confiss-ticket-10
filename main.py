@@ -3,229 +3,142 @@ import logging
 
 from telegram.ext import (
     Application,
-    CommandHandler
+    CommandHandler,
+    CallbackQueryHandler,
+    MessageHandler,
+    ConversationHandler,
+    filters
 )
 
 from config import BOT_TOKEN
-from utils.logger import logger
+
+from database.db import init_db
+
+from handlers.user import user_start
+from handlers.ticket import (
+    create_ticket_start,
+    receive_title,
+    receive_message
+)
+
+from handlers.admin_dashboard import dashboard
+
+from handlers.settings_manager import (
+    settings_menu,
+    bot_on,
+    bot_off
+)
+
+from handlers.admin_reply import save_reply
+
+from states.states import TicketState
+
+from utils.error_handler import error_handler
 
 
-# =========================
-# Start Message
-# =========================
-
-async def start(update, context):
-
-    text = """
-سلام رفیق 😎👋
-
-🎟 به بات تیکت امن kingk-configs خوش اومدی 🫴😑
-
-💨 اینجا میتونی خیلی امن و راحت تیکت ثبت کنی و ادمین از داخل همینجا بهت پاسخ بده 🤌🗿
-
-🫷🫪 ولی اگر برای خرید کانفیگ یا دریافت کانفیگ رایگان اومدی، لطفاً مستقیم به پشتیبانی پیام بده:
-
-@mr1kk1rn0 🚀
-"""
-
-    await update.message.reply_text(text)
+logging.basicConfig(
+    level=logging.INFO
+)
 
 
-# =========================
-# Error Handler
-# =========================
 
-async def error_handler(update, context):
+async def start():
 
-    logger.error(
-        f"ERROR: {context.error}"
-    )
+    await init_db()
 
-    try:
-        if update and update.effective_message:
-            await update.effective_message.reply_text(
-                "❌ یک خطای موقت رخ داد.\nلطفاً دوباره تلاش کنید 🙏"
+
+    app = Application.builder().token(
+        BOT_TOKEN
+    ).build()
+
+
+    ticket_flow = ConversationHandler(
+
+        entry_points=[
+            CallbackQueryHandler(
+                create_ticket_start,
+                pattern="^create_ticket$"
             )
+        ],
 
-    except Exception:
-        pass
+        states={
+
+            TicketState.TITLE:[
+                MessageHandler(
+                    filters.TEXT,
+                    receive_title
+                )
+            ],
 
 
+            TicketState.MESSAGE:[
+                MessageHandler(
+                    filters.TEXT,
+                    receive_message
+                )
+            ]
 
-# =========================
-# Main
-# =========================
+        },
 
-async def main():
+        fallbacks=[]
 
-    logger.info(
-        "🚀 Starting KingK Ticket Bot..."
     )
 
-    app = (
-        Application
-        .builder()
-        .token(BOT_TOKEN)
-        .build()
-    )
 
-
-    # Commands
     app.add_handler(
         CommandHandler(
             "start",
-            start
+            user_start
         )
     )
 
 
-    # Errors
+    app.add_handler(
+        CommandHandler(
+            "admin",
+            dashboard
+        )
+    )
+
+
+    app.add_handler(
+        ticket_flow
+    )
+
+
+    app.add_handler(
+        CallbackQueryHandler(
+            settings_menu,
+            pattern="^settings$"
+        )
+    )
+
+
+    app.add_handler(
+        CallbackQueryHandler(
+            bot_on,
+            pattern="^bot_on$"
+        )
+    )
+
+
+    app.add_handler(
+        CallbackQueryHandler(
+            bot_off,
+            pattern="^bot_off$"
+        )
+    )
+
+
     app.add_error_handler(
         error_handler
     )
 
 
-    logger.info(
-        "✅ Bot is running..."
-    )
-
-
-    await app.initialize()
-    await app.start()
-    await app.updater.start_polling()
-
-
-    # Keep alive
-    await asyncio.Event().wait()
+    await app.run_polling()
 
 
 
 if __name__ == "__main__":
 
-    try:
-        asyncio.run(main())
-
-    except KeyboardInterrupt:
-        logging.info(
-            "Bot stopped"
-        )
-
-    except Exception as e:
-        logging.error(
-            f"Fatal error: {e}"
-        )import asyncio
-import logging
-
-from telegram.ext import (
-    Application,
-    CommandHandler
-)
-
-from config import BOT_TOKEN
-from utils.logger import logger
-
-
-# =========================
-# Start Message
-# =========================
-
-async def start(update, context):
-
-    text = """
-سلام رفیق 😎👋
-
-🎟 به بات تیکت امن kingk-configs خوش اومدی 🫴😑
-
-💨 اینجا میتونی خیلی امن و راحت تیکت ثبت کنی و ادمین از داخل همینجا بهت پاسخ بده 🤌🗿
-
-🫷🫪 ولی اگر برای خرید کانفیگ یا دریافت کانفیگ رایگان اومدی، لطفاً مستقیم به پشتیبانی پیام بده:
-
-@mr1kk1rn0 🚀
-"""
-
-    await update.message.reply_text(text)
-
-
-# =========================
-# Error Handler
-# =========================
-
-async def error_handler(update, context):
-
-    logger.error(
-        f"ERROR: {context.error}"
-    )
-
-    try:
-        if update and update.effective_message:
-            await update.effective_message.reply_text(
-                "❌ یک خطای موقت رخ داد.\nلطفاً دوباره تلاش کنید 🙏"
-            )
-
-    except Exception:
-        pass
-
-
-
-# =========================
-# Main
-# =========================
-
-async def main():
-
-    logger.info(
-        "🚀 Starting KingK Ticket Bot..."
-    )
-
-    app = (
-        Application
-        .builder()
-        .token(BOT_TOKEN)
-        .build()
-    )
-
-
-    # Commands
-    app.add_handler(
-        CommandHandler(
-            "start",
-            start
-        )
-    )
-
-
-    # Errors
-    app.add_error_handler(
-        error_handler
-    )
-
-
-    logger.info(
-        "✅ Bot is running..."
-    )
-
-
-    await app.initialize()
-    await app.start()
-    await app.updater.start_polling()
-
-
-    # Keep alive
-    await asyncio.Event().wait()
-
-
-
-if __name__ == "__main__":
-
-    try:
-        asyncio.run(main())
-
-    except KeyboardInterrupt:
-        logging.info(
-            "Bot stopped"
-        )
-
-    except Exception as e:
-        logging.error(
-            f"Fatal error: {e}"
-        )
+    asyncio.run(start())
