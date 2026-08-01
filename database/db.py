@@ -1,33 +1,18 @@
 import aiosqlite
 import datetime
-import os
+import logging
 
-DB_NAME = "data/kingk_ticket.db"
+DB_NAME = "bot.db"
 
-
-async def connect_db():
-    os.makedirs("data", exist_ok=True)
-    return await aiosqlite.connect(DB_NAME)
+logger = logging.getLogger(__name__)
 
 
 async def init_db():
-
-    async with await connect_db() as db:
-
-        await db.execute("""
-        CREATE TABLE IF NOT EXISTS users(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER UNIQUE,
-            username TEXT,
-            full_name TEXT,
-            created_at TEXT
-        )
-        """)
-
+    async with aiosqlite.connect(DB_NAME) as db:
 
         await db.execute("""
         CREATE TABLE IF NOT EXISTS tickets(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticket_id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
             title TEXT,
             status TEXT DEFAULT 'open',
@@ -35,98 +20,120 @@ async def init_db():
         )
         """)
 
-
         await db.execute("""
-        CREATE TABLE IF NOT EXISTS ticket_messages(
+        CREATE TABLE IF NOT EXISTS messages(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ticket_id INTEGER,
             sender_id INTEGER,
-            sender_type TEXT,
             message_type TEXT,
-            content TEXT,
             file_id TEXT,
+            caption TEXT,
             created_at TEXT
         )
         """)
 
-
-        await db.execute("""
-        CREATE TABLE IF NOT EXISTS settings(
-            key TEXT PRIMARY KEY,
-            value TEXT
-        )
-        """)
-
-
-        await db.execute("""
-        CREATE TABLE IF NOT EXISTS buttons(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            text TEXT,
-            action TEXT,
-            position INTEGER DEFAULT 0,
-            enabled INTEGER DEFAULT 1
-        )
-        """)
-
-
-        await db.execute("""
-        CREATE TABLE IF NOT EXISTS messages(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            key TEXT UNIQUE,
-            text TEXT
-        )
-        """)
-
-
-        await db.execute("""
-        CREATE TABLE IF NOT EXISTS stickers(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            file_id TEXT
-        )
-        """)
-
-
         await db.commit()
 
 
 
-async def add_user(user_id, username, full_name):
+async def add_message(
+    ticket_id,
+    sender_id,
+    message_type="text",
+    file_id=None,
+    caption=""
+):
 
-    async with await connect_db() as db:
+    async with aiosqlite.connect(DB_NAME) as db:
 
         await db.execute(
             """
-            INSERT OR IGNORE INTO users
-            (user_id, username, full_name, created_at)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO messages
+            (
+                ticket_id,
+                sender_id,
+                message_type,
+                file_id,
+                caption,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
             (
-                user_id,
-                username,
-                full_name,
-                datetime.datetime.now().isoformat()
+                ticket_id,
+                sender_id,
+                message_type,
+                file_id,
+                caption,
+                datetime.datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
             )
         )
 
         await db.commit()
-        async def add_message(ticket_id, sender_id, message_type="text", file_id=None, caption=""):
-    import aiosqlite
-    import datetime
 
-    async with aiosqlite.connect("bot.db") as db:
-        await db.execute("""
-            INSERT INTO messages
-            (ticket_id, sender_id, message_type, file_id, caption, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (
-            ticket_id,
-            sender_id,
-            message_type,
-            file_id,
-            caption,
-            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        ))
+
+
+async def create_ticket(user_id, title):
+
+    async with aiosqlite.connect(DB_NAME) as db:
+
+        cursor = await db.execute(
+            """
+            INSERT INTO tickets
+            (
+                user_id,
+                title,
+                created_at
+            )
+            VALUES (?, ?, ?)
+            """,
+            (
+                user_id,
+                title,
+                datetime.datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+            )
+        )
+
+        await db.commit()
+
+        return cursor.lastrowid
+
+
+
+async def get_ticket(ticket_id):
+
+    async with aiosqlite.connect(DB_NAME) as db:
+
+        cursor = await db.execute(
+            """
+            SELECT * FROM tickets
+            WHERE ticket_id=?
+            """,
+            (ticket_id,)
+        )
+
+        return await cursor.fetchone()
+
+
+
+async def change_status(ticket_id, status):
+
+    async with aiosqlite.connect(DB_NAME) as db:
+
+        await db.execute(
+            """
+            UPDATE tickets
+            SET status=?
+            WHERE ticket_id=?
+            """,
+            (
+                status,
+                ticket_id
+            )
+        )
 
         await db.commit()
